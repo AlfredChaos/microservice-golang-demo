@@ -1,0 +1,9 @@
+server:
+  name: book-service
+  host: 0.0.0.0
+  port: 9002
+
+log:
+  level: info
+  format: console
+  output_path: stdout

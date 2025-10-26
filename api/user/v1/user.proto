@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/alfredchaos/demo/api/user/v1;userv1";
+
+// UserService 用户服务定义
+service UserService {
+  // SayHello 返回问候语
+  rpc SayHello(HelloRequest) returns (HelloResponse) {}
+}
+
+// HelloRequest 问候请求
+message HelloRequest {
+  // 可以添加请求参数,这里暂时为空
+}
+
+// HelloResponse 问候响应
+message HelloResponse {
+  // message 返回的消息内容
+  string message = 1;
+}

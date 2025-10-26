@@ -1,0 +1,16 @@
+server:
+  name: nice-service
+
+log:
+  level: info
+  format: console
+  output_path: stdout
+
+rabbitmq:
+  url: amqp://guest:guest@localhost:5672/
+  exchange: demo_exchange
+  exchange_type: direct
+  queue: nice_queue
+  routing_key: hello
+  durable: true
+  auto_delete: false

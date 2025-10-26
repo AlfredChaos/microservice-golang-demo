@@ -1,0 +1,26 @@
+server:
+  name: user-service
+  host: 0.0.0.0
+  port: 9001
+
+log:
+  level: info
+  format: console
+  output_path: stdout
+
+mongodb:
+  uri: mongodb://localhost:27017
+  database: demo
+  max_pool_size: 100
+  min_pool_size: 10
+  connect_timeout: 10
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+  dial_timeout: 5
+  read_timeout: 3
+  write_timeout: 3

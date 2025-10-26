@@ -1,0 +1,22 @@
+server:
+  name: api-gateway
+  host: 0.0.0.0
+  port: 8080
+
+log:
+  level: info
+  format: console
+  output_path: stdout
+
+services:
+  user_service: localhost:9001
+  book_service: localhost:9002
+
+rabbitmq:
+  url: amqp://guest:guest@localhost:5672/
+  exchange: demo_exchange
+  exchange_type: direct
+  queue: nice_queue
+  routing_key: hello
+  durable: true
+  auto_delete: false
