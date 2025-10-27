@@ -1,0 +1,9 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: 微服务架构演示项目的 API 网关
+  title: Demo API Gateway
+  version: "1.0"
+paths: {}
+swagger: "2.0"

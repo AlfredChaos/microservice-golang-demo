@@ -3,8 +3,6 @@ package mq
 import (
 	"context"
 	"fmt"
-
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // MessageHandler 消息处理函数类型

@@ -1,0 +1,12 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "微服务架构演示项目的 API 网关",
+        "title": "Demo API Gateway",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {}
+}
