@@ -12,11 +12,11 @@ import (
 
 // MongoConfig MongoDB 配置
 type MongoConfig struct {
-	URI            string `yaml:"uri" mapstructure:"uri"`                           // MongoDB 连接 URI
-	Database       string `yaml:"database" mapstructure:"database"`                 // 数据库名称
-	MaxPoolSize    uint64 `yaml:"max_pool_size" mapstructure:"max_pool_size"`       // 最大连接池大小
-	MinPoolSize    uint64 `yaml:"min_pool_size" mapstructure:"min_pool_size"`       // 最小连接池大小
-	ConnectTimeout int    `yaml:"connect_timeout" mapstructure:"connect_timeout"`   // 连接超时(秒)
+	URI            string `yaml:"uri" mapstructure:"uri"`                         // MongoDB 连接 URI
+	Database       string `yaml:"database" mapstructure:"database"`               // 数据库名称
+	MaxPoolSize    uint64 `yaml:"max_pool_size" mapstructure:"max_pool_size"`     // 最大连接池大小
+	MinPoolSize    uint64 `yaml:"min_pool_size" mapstructure:"min_pool_size"`     // 最小连接池大小
+	ConnectTimeout int    `yaml:"connect_timeout" mapstructure:"connect_timeout"` // 连接超时(秒)
 }
 
 // MongoClient MongoDB 客户端封装
@@ -31,24 +31,24 @@ type MongoClient struct {
 func NewMongoClient(cfg *MongoConfig) (*MongoClient, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ConnectTimeout)*time.Second)
 	defer cancel()
-	
+
 	// 设置客户端选项
 	clientOptions := options.Client().
 		ApplyURI(cfg.URI).
 		SetMaxPoolSize(cfg.MaxPoolSize).
 		SetMinPoolSize(cfg.MinPoolSize)
-	
+
 	// 连接到 MongoDB
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to mongodb: %w", err)
 	}
-	
+
 	// 验证连接
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
 		return nil, fmt.Errorf("failed to ping mongodb: %w", err)
 	}
-	
+
 	return &MongoClient{
 		client:   client,
 		database: client.Database(cfg.Database),
@@ -92,11 +92,11 @@ func (mc *MongoClient) WithTransaction(ctx context.Context, fn func(sessCtx mong
 		return fmt.Errorf("failed to start session: %w", err)
 	}
 	defer session.EndSession(ctx)
-	
+
 	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
 		return nil, fn(sessCtx)
 	})
-	
+
 	return err
 }
 

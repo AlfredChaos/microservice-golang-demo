@@ -57,6 +57,11 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to create grpc clients", zap.Error(err))
 	}
+	defer func() {
+		if err := grpcClients.Close(); err != nil {
+			log.Error("failed to close grpc clients", zap.Error(err))
+		}
+	}()
 	log.Info("grpc clients initialized")
 	
 	// 初始化 RabbitMQ 客户端

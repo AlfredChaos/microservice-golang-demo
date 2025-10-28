@@ -8,6 +8,7 @@ import (
 	"github.com/alfredchaos/demo/internal/book-service/conf"
 	"github.com/alfredchaos/demo/internal/book-service/service"
 	"github.com/alfredchaos/demo/pkg/log"
+	"github.com/alfredchaos/demo/pkg/middleware"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -21,8 +22,21 @@ type GRPCServer struct {
 
 // NewGRPCServer 创建新的 gRPC 服务器
 func NewGRPCServer(cfg *conf.ServerConfig, bookService *service.BookService) *GRPCServer {
-	// 创建 gRPC 服务器
-	server := grpc.NewServer()
+	// 创建 gRPC 服务器，应用拦截器链
+	server := grpc.NewServer(
+		// 一元拦截器（按顺序执行）
+		grpc.ChainUnaryInterceptor(
+			middleware.UnaryServerRecovery(), // 1. Panic恢复
+			middleware.UnaryServerTracing(),  // 2. 追踪
+			middleware.UnaryServerLogging(),  // 3. 日志记录
+		),
+		// 流拦截器（按顺序执行）
+		grpc.ChainStreamInterceptor(
+			middleware.StreamServerRecovery(), // 1. Panic恢复
+			middleware.StreamServerTracing(),  // 2. 追踪
+			middleware.StreamServerLogging(),  // 3. 日志记录
+		),
+	)
 	
 	// 注册服务
 	orderv1.RegisterBookServiceServer(server, bookService)

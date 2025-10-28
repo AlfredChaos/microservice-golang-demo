@@ -27,16 +27,17 @@ func NewUserService(useCase biz.UserUseCase) *UserService {
 // SayHello 实现 UserService.SayHello 方法
 func (s *UserService) SayHello(ctx context.Context, req *userv1.HelloRequest) (*userv1.HelloResponse, error) {
 	log.Info("received SayHello request")
-	
+	panic("mock panic")
+
 	// 调用业务逻辑层
 	message, err := s.useCase.SayHello(ctx)
 	if err != nil {
 		log.Error("failed to say hello", zap.Error(err))
 		return nil, err
 	}
-	
+
 	log.Info("SayHello completed", zap.String("message", message))
-	
+
 	return &userv1.HelloResponse{
 		Message: message,
 	}, nil
