@@ -40,7 +40,8 @@ func NewHelloController(grpcClients *client.GRPCClients, publisher mq.Publisher)
 // @Failure 500 {object} dto.Response "服务器错误"
 // @Router /api/v1/hello [post]
 func (h *HelloController) SayHello(c *gin.Context) {
-	log.Info("received hello request")
+	// 使用 WithContext 自动附加请求上下文信息（request_id, trace_id, request info等）
+	log.WithContext(c.Request.Context()).Info("received hello request")
 
 	// 创建上下文,设置超时
 	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -74,20 +75,20 @@ func (h *HelloController) SayHello(c *gin.Context) {
 
 	// 检查错误
 	if userResult.err != nil {
-		log.Error("failed to call user service", zap.Error(userResult.err))
+		log.WithContext(ctx).Error("failed to call user service", zap.Error(userResult.err))
 		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse(10001, "failed to call user service"))
 		return
 	}
 
 	if bookResult.err != nil {
-		log.Error("failed to call book service", zap.Error(bookResult.err))
+		log.WithContext(ctx).Error("failed to call book service", zap.Error(bookResult.err))
 		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse(10001, "failed to call book service"))
 		return
 	}
 
 	// 组合响应
 	response := userResult.message + " " + bookResult.message
-	log.Info("combined response", zap.String("response", response))
+	log.WithContext(ctx).Info("combined response", zap.String("response", response))
 
 	// 发送消息到 RabbitMQ
 	go func() {
@@ -111,6 +112,15 @@ func (h *HelloController) SayHello(c *gin.Context) {
 			log.Info("message published to rabbitmq")
 		}
 	}()
+
+	// 无需手动传递 request_id, trace_id, request info 等字段
+	log.WithContext(ctx).Info("business logic completed")
+
+	// 如果需要附加额外的业务字段，可以继续链式调用
+	log.WithContext(ctx).Info("API Request with extra data",
+		log.DurationMs(100),
+		log.ExtraData("extra", "data"),
+	)
 
 	// 返回响应
 	c.JSON(http.StatusOK, dto.NewSuccessResponse(response))

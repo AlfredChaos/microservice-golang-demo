@@ -22,18 +22,18 @@ func NewMessageConsumer(consumer mq.Consumer) *MessageConsumer {
 
 // Start 启动消费者
 func (mc *MessageConsumer) Start(ctx context.Context) error {
-	log.Info("starting message consumer")
-	
+	log.WithContext(ctx).Info("starting message consumer")
+
 	// 定义消息处理函数
 	handler := func(ctx context.Context, message []byte) error {
-		log.Info("received message", zap.String("message", string(message)))
-		
+		log.WithContext(ctx).Info("received message", zap.String("message", string(message)))
+
 		// 打印 "Nice"
-		log.Info("Nice")
-		
+		log.WithContext(ctx).Info("Nice")
+
 		return nil
 	}
-	
+
 	// 开始消费消息
 	return mc.consumer.Consume(ctx, handler)
 }

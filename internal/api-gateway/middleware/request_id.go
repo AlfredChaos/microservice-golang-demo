@@ -1,8 +1,7 @@
 package middleware
 
 import (
-	"context"
-
+	"github.com/alfredchaos/demo/pkg/reqctx"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -27,8 +26,8 @@ func RequestID() gin.HandlerFunc {
 		// 将请求ID设置到 gin.Context 中
 		c.Set(RequestIDKey, requestID)
 
-		// 将请求ID添加到 request.Context 中，供gRPC调用使用
-		ctx := context.WithValue(c.Request.Context(), RequestIDKey, requestID)
+		// 将请求ID添加到 request.Context 中
+		ctx := reqctx.WithRequestID(c.Request.Context(), requestID)
 		c.Request = c.Request.WithContext(ctx)
 
 		// 将请求ID设置到响应头中

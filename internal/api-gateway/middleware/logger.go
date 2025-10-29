@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/alfredchaos/demo/pkg/log"
+	"github.com/alfredchaos/demo/pkg/reqctx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -21,6 +22,18 @@ func Logger() gin.HandlerFunc {
 		// 获取请求ID
 		requestID := GetRequestID(c)
 
+		// 获取请求方法和客户端IP
+		method := c.Request.Method
+		clientIP := c.ClientIP()
+
+		// 将请求信息附加到 context，供业务代码使用
+		ctx := c.Request.Context()
+		ctx = reqctx.WithRequestID(ctx, requestID)
+		ctx = reqctx.WithRequestInfo(ctx, method, path, clientIP)
+		
+		// 更新 request 的 context
+		c.Request = c.Request.WithContext(ctx)
+
 		// 处理请求
 		c.Next()
 
@@ -29,12 +42,6 @@ func Logger() gin.HandlerFunc {
 
 		// 获取响应状态码
 		statusCode := c.Writer.Status()
-
-		// 获取客户端IP
-		clientIP := c.ClientIP()
-
-		// 获取请求方法
-		method := c.Request.Method
 
 		// 获取错误信息（如果有）
 		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()

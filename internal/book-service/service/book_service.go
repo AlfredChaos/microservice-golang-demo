@@ -24,17 +24,17 @@ func NewBookService(useCase biz.BookUseCase) *BookService {
 
 // GetBook 实现 BookService.GetBook 方法
 func (s *BookService) GetBook(ctx context.Context, req *orderv1.BookRequest) (*orderv1.BookResponse, error) {
-	log.Info("received GetBook request")
-	
+	log.WithContext(ctx).Info("received GetBook request")
+
 	// 调用业务逻辑层
 	message, err := s.useCase.GetBook(ctx)
 	if err != nil {
-		log.Error("failed to get book", zap.Error(err))
+		log.WithContext(ctx).Error("failed to get book", zap.Error(err))
 		return nil, err
 	}
-	
-	log.Info("GetBook completed", zap.String("message", message))
-	
+
+	log.WithContext(ctx).Info("GetBook completed", zap.String("message", message))
+
 	return &orderv1.BookResponse{
 		Message: message,
 	}, nil

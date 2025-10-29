@@ -4,9 +4,19 @@ server:
   port: 8080
 
 log:
-  level: info
-  format: console
-  output_path: stdout
+  level: debug  # 日志级别: debug, info, warn, error
+  format: console  # 格式: console (人眼友好), json (生产环境)
+  output_paths:  # 输出路径，支持多个，可同时输出到文件和stdout
+    - stdout
+    # - ./logs/api-gateway.log  # 取消注释以同时输出到文件
+  enable_console_writer: true  # 是否启用 ConsoleWriter (彩色、格式化输出，仅对stdout生效)
+  # 日志切割配置（可选，仅对文件输出生效）
+  # rotation:
+  #   max_size: 100      # 每个日志文件最大 100MB
+  #   max_age: 30        # 保留 30 天的日志
+  #   max_backups: 10    # 最多保留 10 个旧日志文件
+  #   compress: true     # 压缩旧日志文件
+  #   local_time: true   # 使用本地时间
 
 services:
   user_service: localhost:9001

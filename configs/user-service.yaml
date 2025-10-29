@@ -4,9 +4,12 @@ server:
   port: 9001
 
 log:
-  level: info
-  format: console
-  output_path: stdout
+  level: debug  # 日志级别: debug, info, warn, error
+  format: console  # 格式: console (人眼友好), json (生产环境)
+  output_paths:  # 输出路径，支持多个，可同时输出到文件和stdout
+    - stdout
+    # - /var/log/user-service.log  # 取消注释以同时输出到文件
+  enable_console_writer: true  # 是否启用 ConsoleWriter (彩色、格式化输出，仅对stdout生效)
 
 mongodb:
   uri: mongodb://admin:123456@localhost:27017

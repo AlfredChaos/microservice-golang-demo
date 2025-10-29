@@ -1,0 +1,32 @@
+server:
+  name: api-gateway
+  host: 0.0.0.0
+  port: 8080
+
+log:
+  level: info  # 生产环境使用 info 级别
+  format: json  # 生产环境使用 json 格式
+  output_paths:
+    - stdout  # 输出到控制台，由容器日志系统收集
+    - ./logs/api-gateway.log  # 同时输出到文件，启用日志切割
+  enable_console_writer: false  # 生产环境不启用彩色输出
+  # 日志切割配置（生产环境推荐配置）
+  rotation:
+    max_size: 100      # 每个日志文件最大 100MB
+    max_age: 30        # 保留 30 天的日志
+    max_backups: 15    # 最多保留 15 个旧日志文件
+    compress: true     # 压缩旧日志文件，节省磁盘空间
+    local_time: true   # 使用本地时间
+
+services:
+  user_service: user-service:9001
+  book_service: book-service:9002
+
+rabbitmq:
+  url: amqp://admin:password@rabbitmq:5672/
+  exchange: demo_exchange
+  exchange_type: direct
+  queue: nice_queue
+  routing_key: hello
+  durable: true
+  auto_delete: false

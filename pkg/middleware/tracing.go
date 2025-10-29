@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	"github.com/alfredchaos/demo/pkg/reqctx"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -38,7 +39,7 @@ func UnaryServerTracing() grpc.UnaryServerInterceptor {
 		}
 
 		// 将trace-id存储到上下文中
-		ctx = context.WithValue(ctx, TraceIDKey, traceID)
+		ctx = reqctx.WithTraceID(ctx, traceID)
 
 		// 调用实际的处理函数
 		return handler(ctx, req)
@@ -71,7 +72,7 @@ func StreamServerTracing() grpc.StreamServerInterceptor {
 		}
 
 		// 将trace-id存储到上下文中
-		ctx = context.WithValue(ctx, TraceIDKey, traceID)
+		ctx = reqctx.WithTraceID(ctx, traceID)
 
 		// 调用实际的处理函数
 		return handler(srv, ss)
@@ -80,8 +81,5 @@ func StreamServerTracing() grpc.StreamServerInterceptor {
 
 // GetTraceID 从上下文中获取追踪ID
 func GetTraceID(ctx context.Context) string {
-	if traceID, ok := ctx.Value(TraceIDKey).(string); ok {
-		return traceID
-	}
-	return ""
+	return reqctx.GetTraceID(ctx)
 }
