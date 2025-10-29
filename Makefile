@@ -21,8 +21,8 @@ swagger:
 	@chmod +x $(SCRIPTS_DIR)/gen-swagger.sh
 	@$(SCRIPTS_DIR)/gen-swagger.sh
 
-# 编译所有服务
-build: proto
+# 编译所有服务（自动生成 Swagger 文档和 protobuf 代码）
+build: swagger proto
 	@echo "Building all services..."
 	@mkdir -p $(BUILD_DIR)
 	@for service in $(SERVICES); do \
@@ -84,7 +84,7 @@ help:
 	@echo "Available commands:"
 	@echo "  make proto          - Generate protobuf code"
 	@echo "  make swagger        - Generate swagger documentation"
-	@echo "  make build          - Build all services"
+	@echo "  make build          - Build all services (auto-generate docs & proto)"
 	@echo "  make build-<name>   - Build specific service"
 	@echo "  make run-gateway    - Run api-gateway"
 	@echo "  make run-user       - Run user-service"

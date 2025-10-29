@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/alfredchaos/demo/docs"
 	"github.com/alfredchaos/demo/internal/api-gateway/client"
 	"github.com/alfredchaos/demo/internal/api-gateway/controller"
 	"github.com/alfredchaos/demo/internal/api-gateway/router"
@@ -17,10 +18,10 @@ import (
 
 // Config api-gateway 配置结构
 type Config struct {
-	Server   ServerConfig      `yaml:"server" mapstructure:"server"`       // 服务器配置
-	Log      log.LogConfig     `yaml:"log" mapstructure:"log"`             // 日志配置
-	Services ServicesConfig    `yaml:"services" mapstructure:"services"`   // 后端服务配置
-	RabbitMQ mq.RabbitMQConfig `yaml:"rabbitmq" mapstructure:"rabbitmq"`   // RabbitMQ 配置
+	Server   ServerConfig      `yaml:"server" mapstructure:"server"`     // 服务器配置
+	Log      log.LogConfig     `yaml:"log" mapstructure:"log"`           // 日志配置
+	Services ServicesConfig    `yaml:"services" mapstructure:"services"` // 后端服务配置
+	RabbitMQ mq.RabbitMQConfig `yaml:"rabbitmq" mapstructure:"rabbitmq"` // RabbitMQ 配置
 }
 
 // ServerConfig 服务器配置
@@ -45,13 +46,13 @@ func main() {
 	// 加载配置
 	var cfg Config
 	config.MustLoadConfig("api-gateway", &cfg)
-	
+
 	// 初始化日志
 	log.MustInitLogger(&cfg.Log, cfg.Server.Name)
 	defer log.Sync()
-	
+
 	log.Info("starting api-gateway", zap.String("name", cfg.Server.Name))
-	
+
 	// 初始化 gRPC 客户端
 	grpcClients, err := client.NewGRPCClients(cfg.Services.UserService, cfg.Services.BookService)
 	if err != nil {
@@ -63,7 +64,7 @@ func main() {
 		}
 	}()
 	log.Info("grpc clients initialized")
-	
+
 	// 初始化 RabbitMQ 客户端
 	rabbitMQClient := mq.MustNewRabbitMQClient(&cfg.RabbitMQ)
 	defer func() {
@@ -71,32 +72,32 @@ func main() {
 			log.Error("failed to close rabbitmq client", zap.Error(err))
 		}
 	}()
-	
+
 	// 创建消息发布者
 	publisher := mq.NewRabbitMQPublisher(rabbitMQClient)
 	log.Info("rabbitmq publisher initialized")
-	
+
 	// 初始化控制器
 	helloController := controller.NewHelloController(grpcClients, publisher)
-	
+
 	// 设置路由
 	r := router.SetupRouter(helloController)
-	
+
 	// 启动 HTTP 服务器
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Info("http server starting", zap.String("addr", addr))
-	
+
 	go func() {
 		if err := r.Run(addr); err != nil {
 			log.Fatal("failed to start http server", zap.Error(err))
 		}
 	}()
-	
+
 	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	log.Info("shutting down api-gateway")
 	log.Info("api-gateway stopped")
 }
