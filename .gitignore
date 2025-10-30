@@ -45,3 +45,8 @@ temp/
 
 # api docs
 docs/
+
+# ai ide dir
+.windsurf/
+.claude/
+.cursor/
