@@ -8,6 +8,7 @@ import (
 
 // RabbitMQConfig RabbitMQ 配置
 type RabbitMQConfig struct {
+	Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`             // 是否启用 RabbitMQ
 	URL          string `yaml:"url" mapstructure:"url"`                     // RabbitMQ 连接 URL
 	Exchange     string `yaml:"exchange" mapstructure:"exchange"`           // 交换机名称
 	ExchangeType string `yaml:"exchange_type" mapstructure:"exchange_type"` // 交换机类型: direct, topic, fanout

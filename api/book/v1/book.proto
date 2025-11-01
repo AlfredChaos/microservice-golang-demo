@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package book.v1;
+
+option go_package = "github.com/alfredchaos/demo/api/book/v1;bookv1";
+
+service BookService {
+  rpc SayHello(HelloRequest) returns (HelloResponse) {}
+}
+
+message HelloRequest {}
+
+message HelloResponse {
+  string message = 1;
+}

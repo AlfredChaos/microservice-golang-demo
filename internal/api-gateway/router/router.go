@@ -3,15 +3,13 @@ package router
 import (
 	"time"
 
-	"github.com/alfredchaos/demo/internal/api-gateway/controller"
+	"github.com/alfredchaos/demo/internal/api-gateway/dependencies"
 	"github.com/alfredchaos/demo/internal/api-gateway/middleware"
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // SetupRouter 设置路由
-func SetupRouter(helloController *controller.HelloController) *gin.Engine {
+func SetupRouter(appCtx *dependencies.AppContext) *gin.Engine {
 	// 创建 Gin 引擎（不使用默认中间件）
 	router := gin.New()
 
@@ -27,19 +25,16 @@ func SetupRouter(helloController *controller.HelloController) *gin.Engine {
 	// API 路由组
 	apiV1 := router.Group("/api/v1")
 	{
-		// 问候接口
-		apiV1.POST("/hello", helloController.SayHello)
+		// 用户路由
+		UserRouter(apiV1, appCtx.UserController)
+		// 图书路由
+		BookRouter(apiV1, appCtx.BookController)
+		// 可以继续添加更多路由
+		// OrderRouter(apiV1, appCtx.OrderController)
 	}
 
-	// Swagger 文档路由（不需要超时限制）
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// 健康检查（不需要超时限制）
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-		})
-	})
+	// 系统路由组
+	SystemRouter(router)
 
 	return router
 }

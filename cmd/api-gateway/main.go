@@ -6,22 +6,26 @@ import (
 	"os/signal"
 	"syscall"
 
+	orderv1 "github.com/alfredchaos/demo/api/order/v1"
+	userv1 "github.com/alfredchaos/demo/api/user/v1"
 	_ "github.com/alfredchaos/demo/docs"
-	"github.com/alfredchaos/demo/internal/api-gateway/client"
-	"github.com/alfredchaos/demo/internal/api-gateway/controller"
+	"github.com/alfredchaos/demo/internal/api-gateway/dependencies"
 	"github.com/alfredchaos/demo/internal/api-gateway/router"
 	"github.com/alfredchaos/demo/pkg/config"
+	"github.com/alfredchaos/demo/pkg/grpcclient"
 	"github.com/alfredchaos/demo/pkg/log"
 	"github.com/alfredchaos/demo/pkg/mq"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 // Config api-gateway 配置结构
 type Config struct {
-	Server   ServerConfig      `yaml:"server" mapstructure:"server"`     // 服务器配置
-	Log      log.LogConfig     `yaml:"log" mapstructure:"log"`           // 日志配置
-	Services ServicesConfig    `yaml:"services" mapstructure:"services"` // 后端服务配置
-	RabbitMQ mq.RabbitMQConfig `yaml:"rabbitmq" mapstructure:"rabbitmq"` // RabbitMQ 配置
+	Server      ServerConfig      `yaml:"server" mapstructure:"server"`             // 服务器配置
+	Log         log.LogConfig     `yaml:"log" mapstructure:"log"`                   // 日志配置
+	Services    ServicesConfig    `yaml:"services" mapstructure:"services"`         // 后端服务配置（保持向后兼容）
+	GRPCClients grpcclient.Config `yaml:"grpc_clients" mapstructure:"grpc_clients"` // gRPC客户端配置
+	RabbitMQ    mq.RabbitMQConfig `yaml:"rabbitmq" mapstructure:"rabbitmq"`         // RabbitMQ 配置
 }
 
 // ServerConfig 服务器配置
@@ -35,6 +39,17 @@ type ServerConfig struct {
 type ServicesConfig struct {
 	UserService string `yaml:"user_service" mapstructure:"user_service"` // user-service 地址
 	BookService string `yaml:"book_service" mapstructure:"book_service"` // book-service 地址
+}
+
+func init() {
+	// 注册 gRPC 客户端工厂
+	grpcclient.GlobalRegistry.Register("user-service", func(conn *grpc.ClientConn) interface{} {
+		return userv1.NewUserServiceClient(conn)
+	})
+
+	grpcclient.GlobalRegistry.Register("book-service", func(conn *grpc.ClientConn) interface{} {
+		return orderv1.NewBookServiceClient(conn)
+	})
 }
 
 // @title Demo API Gateway
@@ -53,35 +68,21 @@ func main() {
 
 	log.Info("starting api-gateway", zap.String("name", cfg.Server.Name))
 
-	// 初始化 gRPC 客户端
-	grpcClients, err := client.NewGRPCClients(cfg.Services.UserService, cfg.Services.BookService)
-	if err != nil {
-		log.Fatal("failed to create grpc clients", zap.Error(err))
-	}
+	// 初始化 gRPC 客户端管理器
+	clientManager := grpcclient.InitGRPCClientManager(&cfg.GRPCClients)
 	defer func() {
-		if err := grpcClients.Close(); err != nil {
-			log.Error("failed to close grpc clients", zap.Error(err))
-		}
-	}()
-	log.Info("grpc clients initialized")
-
-	// 初始化 RabbitMQ 客户端
-	rabbitMQClient := mq.MustNewRabbitMQClient(&cfg.RabbitMQ)
-	defer func() {
-		if err := rabbitMQClient.Close(); err != nil {
-			log.Error("failed to close rabbitmq client", zap.Error(err))
+		if err := clientManager.Close(); err != nil {
+			log.Error("failed to close grpc client manager", zap.Error(err))
 		}
 	}()
 
-	// 创建消息发布者
-	publisher := mq.NewRabbitMQPublisher(rabbitMQClient)
-	log.Info("rabbitmq publisher initialized")
-
-	// 初始化控制器
-	helloController := controller.NewHelloController(grpcClients, publisher)
+	// 依赖注入
+	deps := &dependencies.Dependencies{ClientManager: clientManager}
+	appCtx := dependencies.InjectDependencies(deps)
+	log.Info("dependencies injected successfully")
 
 	// 设置路由
-	r := router.SetupRouter(helloController)
+	r := router.SetupRouter(appCtx)
 
 	// 启动 HTTP 服务器
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

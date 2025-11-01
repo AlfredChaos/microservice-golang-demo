@@ -5,19 +5,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alfredchaos/demo/pkg/log"
 	"github.com/go-redis/redis/v8"
+	"go.uber.org/zap"
 )
 
 // RedisConfig Redis 配置
 type RedisConfig struct {
-	Addr         string `yaml:"addr" mapstructure:"addr"`                   // Redis 地址
-	Password     string `yaml:"password" mapstructure:"password"`           // 密码
-	DB           int    `yaml:"db" mapstructure:"db"`                       // 数据库编号
-	PoolSize     int    `yaml:"pool_size" mapstructure:"pool_size"`         // 连接池大小
-	MinIdleConns int    `yaml:"min_idle_conns" mapstructure:"min_idle_conns"` // 最小空闲连接数
-	DialTimeout  int    `yaml:"dial_timeout" mapstructure:"dial_timeout"`   // 连接超时(秒)
-	ReadTimeout  int    `yaml:"read_timeout" mapstructure:"read_timeout"`   // 读超时(秒)
-	WriteTimeout int    `yaml:"write_timeout" mapstructure:"write_timeout"` // 写超时(秒)
+	Addr              string `yaml:"addr" mapstructure:"addr"`                               // Redis 地址
+	Password          string `yaml:"password" mapstructure:"password"`                       // 密码
+	DB                int    `yaml:"db" mapstructure:"db"`                                   // 数据库编号
+	PoolSize          int    `yaml:"pool_size" mapstructure:"pool_size"`                     // 连接池大小
+	MinIdleConns      int    `yaml:"min_idle_conns" mapstructure:"min_idle_conns"`           // 最小空闲连接数
+	DialTimeout       int    `yaml:"dial_timeout" mapstructure:"dial_timeout"`               // 连接超时(秒)
+	ReadTimeout       int    `yaml:"read_timeout" mapstructure:"read_timeout"`               // 读超时(秒)
+	WriteTimeout      int    `yaml:"write_timeout" mapstructure:"write_timeout"`             // 写超时(秒)
+	LogLevel          string `yaml:"log_level" mapstructure:"log_level"`                     // 日志级别 (silent, error, warn, info)
+	SlowOpThreshold   int    `yaml:"slow_op_threshold" mapstructure:"slow_op_threshold"`     // 慢操作阈值(毫秒)，默认100ms
+	EnableDetailedLog bool   `yaml:"enable_detailed_log" mapstructure:"enable_detailed_log"` // 是否记录详细命令
 }
 
 // RedisClient Redis 客户端封装
@@ -27,7 +32,6 @@ type RedisClient struct {
 }
 
 // NewRedisClient 创建新的 Redis 客户端
-// 使用工厂模式创建客户端实例
 func NewRedisClient(cfg *RedisConfig) (*RedisClient, error) {
 	// 创建 Redis 客户端
 	client := redis.NewClient(&redis.Options{
@@ -40,15 +44,20 @@ func NewRedisClient(cfg *RedisConfig) (*RedisClient, error) {
 		ReadTimeout:  time.Duration(cfg.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(cfg.WriteTimeout) * time.Second,
 	})
-	
+
+	// 添加日志 Hook
+	if cfg.LogLevel != "" && cfg.LogLevel != "silent" {
+		client.AddHook(newRedisLogHook(cfg))
+	}
+
 	// 测试连接
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
-	
+
 	return &RedisClient{
 		client: client,
 		config: cfg,
@@ -114,11 +123,92 @@ func (rc *RedisClient) Ping(ctx context.Context) error {
 }
 
 // MustNewRedisClient 创建 Redis 客户端,失败则 panic
-// 适用于服务启动阶段
 func MustNewRedisClient(cfg *RedisConfig) *RedisClient {
 	client, err := NewRedisClient(cfg)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create redis client: %v", err))
 	}
 	return client
+}
+
+// ============================================================
+// Redis 日志 Hook（集成现有的 log 包）
+// ============================================================
+
+// redisLogHook Redis 日志钩子
+type redisLogHook struct {
+	logLevel          string
+	slowOpThreshold   time.Duration
+	enableDetailedLog bool
+}
+
+// newRedisLogHook 创建 Redis 日志钩子
+func newRedisLogHook(cfg *RedisConfig) *redisLogHook {
+	slowOpThreshold := 100 * time.Millisecond // 默认 100ms
+	if cfg.SlowOpThreshold > 0 {
+		slowOpThreshold = time.Duration(cfg.SlowOpThreshold) * time.Millisecond
+	}
+
+	return &redisLogHook{
+		logLevel:          cfg.LogLevel,
+		slowOpThreshold:   slowOpThreshold,
+		enableDetailedLog: cfg.EnableDetailedLog,
+	}
+}
+
+func (h *redisLogHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
+	// 在命令执行前不记录日志，避免过多日志
+	return ctx, nil
+}
+
+func (h *redisLogHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
+	// 计算执行时间
+	return h.logCommand(ctx, cmd, 0)
+}
+
+// BeforeProcessPipeline 在 Pipeline 执行前调用
+func (h *redisLogHook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
+	return ctx, nil
+}
+
+// AfterProcessPipeline 在 Pipeline 执行后调用
+func (h *redisLogHook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
+	for _, cmd := range cmds {
+		if err := h.logCommand(ctx, cmd, 0); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// logCommand 记录命令执行日志
+func (h *redisLogHook) logCommand(ctx context.Context, cmd redis.Cmder, duration time.Duration) error {
+	contextLogger := log.WithContext(ctx).WithOptions(zap.AddCallerSkip(2))
+
+	fields := []zap.Field{
+		zap.String("command", cmd.Name()),
+	}
+
+	if h.enableDetailedLog {
+		fields = append(fields, zap.Any("args", cmd.Args()))
+	}
+
+	// 检查命令是否有错误（排除 redis.Nil）
+	err := cmd.Err()
+	if err != nil && err != redis.Nil {
+		fields = append(fields, zap.Error(err))
+		contextLogger.Error("redis command failed", fields...)
+		return nil
+	}
+
+	// 记录缓存命中/未命中
+	if cmd.Name() == "get" || cmd.Name() == "mget" {
+		fields = append(fields, zap.Bool("cache_hit", err != redis.Nil))
+	}
+
+	if h.logLevel == "info" {
+		contextLogger.Info("redis command executed", fields...)
+	}
+
+	return nil
 }

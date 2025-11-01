@@ -1,4 +1,4 @@
-.PHONY: proto swagger build clean run-gateway run-user run-book run-nice
+.PHONY: proto swagger build clean run-gateway run-user run-book run-nice migrate-up migrate-down migrate-status migrate-reset migrate-version
 
 # 项目配置
 PROJECT_NAME=demo
@@ -79,9 +79,58 @@ deps:
 	@go mod tidy
 	@echo "Dependencies ready!"
 
-# 运行所有服务 (需要在不同终端运行)
+# ============================================================
+# 数据库迁移命令
+# ============================================================
+
+# 执行数据库迁移（升级到最新版本）
+migrate-up:
+	@echo "Running database migrations..."
+	@go run cmd/migrate/main.go -cmd=up
+
+# 回滚最后一次迁移
+migrate-down:
+	@echo "Rolling back last migration..."
+	@go run cmd/migrate/main.go -cmd=down
+
+# 查看迁移状态
+migrate-status:
+	@echo "Checking migration status..."
+	@go run cmd/migrate/main.go -cmd=status
+
+# 重置数据库（删除所有数据）
+migrate-reset:
+	@echo "⚠️  WARNING: This will reset the database!"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		go run cmd/migrate/main.go -cmd=reset; \
+	else \
+		echo "Cancelled."; \
+	fi
+
+# 迁移到指定版本（需要指定 VERSION 参数）
+migrate-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Error: VERSION is required. Usage: make migrate-version VERSION=1"; \
+		exit 1; \
+	fi
+	@echo "Migrating to version $(VERSION)..."
+	@go run cmd/migrate/main.go -cmd=version -version=$(VERSION)
+
+# 使用生产配置执行迁移
+migrate-up-prod:
+	@echo "Running database migrations (production)..."
+	@go run cmd/migrate/main.go -cmd=up -config=configs/user-service.prod.yaml
+
+# ============================================================
+# 帮助信息
+# ============================================================
+
 help:
 	@echo "Available commands:"
+	@echo ""
+	@echo "Build & Run:"
 	@echo "  make proto          - Generate protobuf code"
 	@echo "  make swagger        - Generate swagger documentation"
 	@echo "  make build          - Build all services (auto-generate docs & proto)"
@@ -90,6 +139,16 @@ help:
 	@echo "  make run-user       - Run user-service"
 	@echo "  make run-book       - Run book-service"
 	@echo "  make run-nice       - Run nice-service"
+	@echo ""
+	@echo "Database Migration:"
+	@echo "  make migrate-up        - Run migrations (upgrade to latest)"
+	@echo "  make migrate-down      - Rollback last migration"
+	@echo "  make migrate-status    - Show migration status"
+	@echo "  make migrate-reset     - Reset database (dangerous!)"
+	@echo "  make migrate-version VERSION=N - Migrate to specific version"
+	@echo "  make migrate-up-prod   - Run migrations with prod config"
+	@echo ""
+	@echo "Tools & Utils:"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make install-tools  - Install development tools"
 	@echo "  make deps           - Download dependencies"

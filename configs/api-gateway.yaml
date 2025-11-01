@@ -22,6 +22,23 @@ services:
   user_service: localhost:9001
   book_service: localhost:9002
 
+grpc_clients:
+  services:
+    - name: user-service
+      address: localhost:9001
+      timeout: 5s
+      retry:
+        max: 3
+        timeout: 10s
+        backoff: 100ms
+    - name: book-service
+      address: localhost:9002
+      timeout: 5s
+      retry:
+        max: 3
+        timeout: 10s
+        backoff: 100ms
+
 rabbitmq:
   url: amqp://admin:123456@localhost:5672/
   exchange: demo_exchange

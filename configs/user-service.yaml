@@ -17,6 +17,9 @@ mongodb:
   max_pool_size: 100
   min_pool_size: 10
   connect_timeout: 10
+  log_level: info  # 日志级别: silent, error, warn, info
+  slow_query_threshold: 200  # 慢查询阈值(毫秒)
+  enable_detailed_log: true  # 是否记录详细命令（生产环境建议false）
 
 redis:
   addr: localhost:6379
@@ -27,3 +30,44 @@ redis:
   dial_timeout: 5
   read_timeout: 3
   write_timeout: 3
+  log_level: warn  # 日志级别: silent, error, warn, info
+  slow_op_threshold: 100  # 慢操作阈值(毫秒)
+  enable_detailed_log: false  # 是否记录详细命令（生产环境建议false）
+
+# PostgreSQL配置（用于存储用户数据）
+database:
+  enabled: true
+  driver: postgres
+  host: localhost
+  port: 5432
+  username: postgres
+  password: 123456
+  database: user_service
+  ssl_mode: disable  # SSL模式: disable, require, verify-ca, verify-full
+  max_open_conns: 100
+  max_idle_conns: 10
+  conn_max_lifetime: 3600  # 连接最大生命周期(秒)
+  conn_max_idle_time: 600  # 连接最大空闲时间(秒)
+  log_level: info  # 日志级别: silent, error, warn, info
+  slow_query_threshold: 200  # 慢查询阈值(毫秒)，超过此值将被记录为警告
+  enable_detailed_log: true  # 是否记录完整SQL（生产环境建议false）
+
+# RabbitMQ配置（用于与nice-service异步通信）
+rabbitmq:
+  enabled: true
+  url: amqp://guest:guest@localhost:5672/
+  exchange: demo_exchange
+  exchange_type: topic
+  queue: user_service_queue
+  routing_key: user.#
+
+# gRPC客户端配置（调用其他服务）
+grpc_clients:
+  services:
+    - name: book-service
+      address: localhost:9002
+      timeout: 5s
+      retry:
+        max: 3
+        timeout: 10s
+        backoff: 100ms
