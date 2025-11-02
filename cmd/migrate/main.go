@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/alfredchaos/demo/internal/user-service/conf"
-	"github.com/alfredchaos/demo/internal/user-service/repository/psql"
+	"github.com/alfredchaos/demo/migrations"
 	"github.com/alfredchaos/demo/pkg/config"
 	"github.com/alfredchaos/demo/pkg/db"
 	"github.com/alfredchaos/demo/pkg/log"
@@ -16,16 +16,16 @@ import (
 func main() {
 	// 解析命令行参数
 	var (
-		command = flag.String("cmd", "up", "迁移命令: up, down, status, version, reset")
-		version = flag.Int64("version", 0, "迁移到指定版本（仅用于 version 命令）")
-		cfgPath = flag.String("config", "configs/user-service.yaml", "配置文件路径")
+		command = flag.String("cmd", "up", "Migration command: up, up-to, down, down-to, status, version, reset")
+		version = flag.Int64("version", 0, "Target version (for up-to/down-to commands)")
+		cfgPath = flag.String("config", "configs/user-service.yaml", "Configuration file path")
 	)
 	flag.Parse()
 
 	// 加载配置
 	var cfg conf.Config
 	if err := config.LoadConfigFromPath(*cfgPath, &cfg); err != nil {
-		fmt.Printf("❌ 加载配置失败: %v\n", err)
+		fmt.Printf("Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -33,60 +33,76 @@ func main() {
 	log.MustInitLogger(&cfg.Log, cfg.Server.Name)
 	defer log.Sync()
 
-	log.Info("🚀 开始数据库迁移", zap.String("command", *command))
+	log.Info("Starting database migration", zap.String("command", *command))
 
 	// 创建数据库客户端（不执行迁移）
 	client, err := db.NewPostgresClient(&cfg.Database)
 	if err != nil {
-		log.Fatal("❌ 创建数据库客户端失败", zap.Error(err))
+		log.Fatal("Failed to create database client", zap.Error(err))
 	}
 	defer client.Close()
+
+	// 获取底层的 sql.DB 对象
+	sqlDB, err := client.GetDB().DB()
+	if err != nil {
+		log.Fatal("Failed to get sql.DB", zap.Error(err))
+	}
 
 	// 执行迁移命令
 	switch *command {
 	case "up":
-		if err := psql.MigrateUp(client); err != nil {
-			log.Fatal("❌ 执行迁移失败", zap.Error(err))
+		if err := migrations.MigrateUp(sqlDB); err != nil {
+			log.Fatal("Failed to execute migration", zap.Error(err))
 		}
-		log.Info("✅ 迁移成功完成")
+		log.Info("Migration completed successfully")
 
 	case "down":
-		if err := psql.MigrateDown(client); err != nil {
-			log.Fatal("❌ 回滚迁移失败", zap.Error(err))
+		if err := migrations.MigrateDown(sqlDB); err != nil {
+			log.Fatal("Failed to rollback migration", zap.Error(err))
 		}
-		log.Info("✅ 回滚成功完成")
+		log.Info("Rollback completed successfully")
 
 	case "status":
-		if err := psql.MigrateStatus(client); err != nil {
-			log.Fatal("❌ 查询迁移状态失败", zap.Error(err))
+		if err := migrations.MigrateStatus(sqlDB); err != nil {
+			log.Fatal("Failed to query migration status", zap.Error(err))
 		}
+
+	case "up-to":
+		if *version == 0 {
+			log.Fatal("up-to command requires -version parameter")
+		}
+		if err := migrations.MigrateUpTo(sqlDB, *version); err != nil {
+			log.Fatal("Failed to migrate up to version", zap.Error(err))
+		}
+		log.Info("Migrated up to version successfully", zap.Int64("version", *version))
+
+	case "down-to":
+		if *version == 0 {
+			log.Fatal("down-to command requires -version parameter")
+		}
+		if err := migrations.MigrateDownTo(sqlDB, *version); err != nil {
+			log.Fatal("Failed to migrate down to version", zap.Error(err))
+		}
+		log.Info("Migrated down to version successfully", zap.Int64("version", *version))
 
 	case "version":
-		if *version == 0 {
-			// 查询当前版本
-			currentVersion, err := psql.GetCurrentVersion(client)
-			if err != nil {
-				log.Fatal("❌ 获取当前版本失败", zap.Error(err))
-			}
-			log.Info("📌 当前数据库版本", zap.Int64("version", currentVersion))
-		} else {
-			// 迁移到指定版本
-			if err := psql.MigrateVersion(client, *version); err != nil {
-				log.Fatal("❌ 迁移到指定版本失败", zap.Error(err))
-			}
-			log.Info("✅ 迁移到指定版本成功", zap.Int64("version", *version))
+		// 查询当前版本
+		currentVersion, err := migrations.GetCurrentVersion(sqlDB)
+		if err != nil {
+			log.Fatal("Failed to get current version", zap.Error(err))
 		}
+		log.Info("Current database version", zap.Int64("version", currentVersion))
 
 	case "reset":
-		log.Warn("⚠️  警告：即将重置数据库（删除所有数据）")
-		if err := psql.MigrateReset(client); err != nil {
-			log.Fatal("❌ 重置数据库失败", zap.Error(err))
+		log.Warn("WARNING: About to reset database (will delete all data)")
+		if err := migrations.MigrateReset(sqlDB); err != nil {
+			log.Fatal("Failed to reset database", zap.Error(err))
 		}
-		log.Info("✅ 数据库重置成功")
+		log.Info("Database reset successfully")
 
 	default:
-		log.Fatal(fmt.Sprintf("❌ 未知命令: %s", *command))
+		log.Fatal(fmt.Sprintf("Unknown command: %s", *command))
 	}
 
-	log.Info("🎉 迁移操作完成")
+	log.Info("Migration operation completed")
 }
