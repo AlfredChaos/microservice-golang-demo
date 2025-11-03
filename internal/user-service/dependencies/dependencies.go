@@ -56,15 +56,12 @@ func InjectDependencies(deps *Dependencies) (*AppContext, error) {
 
 	data := repository.NewData(pgClient, mongoClient, userRepo, userDocumentRepo)
 	userCache := cache.NewUserRedisCache(&deps.Cfg.Redis)
+	
+	// 初始化 RabbitMQ，user-service 仅作为消息发布者
 	messageQueue := rabbitmq.MustInitRabbitMQ(&deps.Cfg.RabbitMQ)
 	publisher, err := messageQueue.NewPublisher()
 	if err != nil {
 		log.Fatal("failed to create publisher", zap.Error(err))
-		return nil, err
-	}
-	consumer, err := messageQueue.NewConsumer()
-	if err != nil {
-		log.Fatal("failed to create consumer", zap.Error(err))
 		return nil, err
 	}
 
@@ -74,7 +71,6 @@ func InjectDependencies(deps *Dependencies) (*AppContext, error) {
 		data.UserDocumentRepo,
 		userCache,
 		publisher,
-		consumer,
 	)
 
 	userService := service.NewUserService(userUseCase)

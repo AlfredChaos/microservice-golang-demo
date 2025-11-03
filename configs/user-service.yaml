@@ -52,14 +52,17 @@ database:
   slow_query_threshold: 200  # 慢查询阈值(毫秒)，超过此值将被记录为警告
   enable_detailed_log: true  # 是否记录完整SQL（生产环境建议false）
 
-# RabbitMQ配置（用于与nice-service异步通信）
+# RabbitMQ配置（用于发布异步事件）
+# 使用 Topic Exchange 模式，所有微服务共用 microservice_events 交换机
 rabbitmq:
   enabled: true
   url: amqp://guest:guest@localhost:5672/
-  exchange: demo_exchange
+  exchange: microservice_events
   exchange_type: topic
-  queue: user_service_queue
-  routing_key: user.#
+  queue: ""
+  routing_key: ""  # 发布时动态指定routing key
+  durable: true  # 持久化交换机
+  auto_delete: false
 
 # gRPC客户端配置（调用其他服务）
 grpc_clients:

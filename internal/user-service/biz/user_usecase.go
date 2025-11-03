@@ -2,7 +2,9 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	bookv1 "github.com/alfredchaos/demo/api/book/v1"
 	"github.com/alfredchaos/demo/internal/user-service/cache"
@@ -10,6 +12,7 @@ import (
 	"github.com/alfredchaos/demo/internal/user-service/messaging"
 	"github.com/alfredchaos/demo/internal/user-service/repository"
 	"github.com/alfredchaos/demo/pkg/log"
+	"github.com/alfredchaos/demo/pkg/mq"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -26,7 +29,6 @@ type UserUseCase struct {
 	userDocRepo repository.UserDocumentRepository
 	userCache   cache.UserCache
 	publisher   messaging.Publisher
-	consumer    messaging.Consumer
 }
 
 // NewUserUseCase 创建新的用户业务逻辑用例
@@ -36,7 +38,6 @@ func NewUserUseCase(
 	userDocRepo repository.UserDocumentRepository,
 	userCache cache.UserCache,
 	publisher messaging.Publisher,
-	consumer messaging.Consumer,
 ) *UserUseCase {
 	return &UserUseCase{
 		bookClient:  bookClient,
@@ -44,7 +45,6 @@ func NewUserUseCase(
 		userDocRepo: userDocRepo,
 		userCache:   userCache,
 		publisher:   publisher,
-		consumer:    consumer,
 	}
 }
 
@@ -67,21 +67,7 @@ func (uc *UserUseCase) SayHello(ctx context.Context, name string) (string, error
 	bookMessage := bookResp.Message
 	log.Info("received message from book-service", zap.String("message", bookMessage))
 
-	// 3. 发送消息到nice-service
-	log.Info("sending message to nice-service", zap.String("message", userMessage))
-	if err := uc.publisher.Publish(ctx, []byte(userMessage)); err != nil {
-		log.Error("failed to publish message to nice-service", zap.Error(err))
-		return "", err
-	}
-
-	// 4. 接受来自nice-service的消息
-	log.Info("waiting for message from nice-service")
-	if err := uc.consumer.Consume(ctx, handleNiceServiceMessage); err != nil {
-		log.Error("failed to consume message from nice-service", zap.Error(err))
-		return "", err
-	}
-
-	// 组合User结构
+	// 3. 组合User结构
 	user := domain.User{
 		ID:       uuid.New().String(),
 		Username: userMessage,
@@ -109,14 +95,34 @@ func (uc *UserUseCase) SayHello(ctx context.Context, name string) (string, error
 		return "", err
 	}
 
-	// 8. 转成字符串
+	// 8. 发送异步任务消息（使用 Topic Exchange）
+	// 构建任务消息
+	taskMsg := map[string]interface{}{
+		"user_id":    user.ID,
+		"username":   user.Username,
+		"task_type":  "sayhello",
+		"message":    userMessage,
+		"created_at": time.Now().Format(time.RFC3339),
+	}
+	taskData, err := json.Marshal(taskMsg)
+	if err != nil {
+		log.Error("failed to marshal task message", zap.Error(err))
+		// 消息序列化失败不影响主流程，继续执行
+	} else {
+		// 使用 PublishWithRouting 发送到指定的 routing key
+		if err := uc.publisher.PublishWithRouting(ctx, mq.RoutingKeyTaskSayHelloCreate, taskData); err != nil {
+			log.Error("failed to publish task message",
+				zap.Error(err),
+				zap.String("routing_key", mq.RoutingKeyTaskSayHelloCreate))
+		} else {
+			log.Info("task message published successfully",
+				zap.String("routing_key", mq.RoutingKeyTaskSayHelloCreate),
+				zap.String("user_id", user.ID))
+		}
+	}
+
+	// 9. 转成字符串
 	userString := fmt.Sprintf("User{ID: %s, Username: %s, Email: %s}", user.ID, user.Username, user.Email)
 
 	return userString, nil
-}
-
-// handleNiceServiceMessage 处理来自nice-service的消息
-func handleNiceServiceMessage(ctx context.Context, message []byte) error {
-	log.Info("received message from nice-service", zap.String("message", string(message)))
-	return nil
 }
