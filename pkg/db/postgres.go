@@ -19,7 +19,7 @@ type PostgresConfig struct {
 	Driver             string `yaml:"driver" mapstructure:"driver"`
 	Host               string `yaml:"host" mapstructure:"host"`                                 // 主机地址
 	Port               int    `yaml:"port" mapstructure:"port"`                                 // 端口
-	UserName           string `yaml:"user_name" mapstructure:"user_name"`                       // 用户名
+	UserName           string `yaml:"username" mapstructure:"username"`                         // 用户名
 	Password           string `yaml:"password" mapstructure:"password"`                         // 密码
 	Database           string `yaml:"database" mapstructure:"database"`                         // 数据库名称
 	SSLMode            string `yaml:"ssl_mode" mapstructure:"ssl_mode"`                         // SSL 模式 (disable, require, verify-ca, verify-full)

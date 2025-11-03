@@ -34,7 +34,7 @@ func InjectDependencies(deps *Dependencies) (*AppContext, error) {
 	// 获取 gRPC 客户端（使用 GetClient 自动创建类型化客户端）
 	client, err := deps.ClientManager.GetClient("book-service")
 	if err != nil {
-		log.Fatal("failed to get book service client", zap.Error(err))
+		log.Fatal("failed to get user service client", zap.Error(err))
 		return nil, err
 	}
 	bookClient := client.(bookv1.BookServiceClient)
@@ -56,7 +56,7 @@ func InjectDependencies(deps *Dependencies) (*AppContext, error) {
 
 	data := repository.NewData(pgClient, mongoClient, userRepo, userDocumentRepo)
 	userCache := cache.NewUserRedisCache(&deps.Cfg.Redis)
-	
+
 	// 初始化 RabbitMQ，user-service 仅作为消息发布者
 	messageQueue := rabbitmq.MustInitRabbitMQ(&deps.Cfg.RabbitMQ)
 	publisher, err := messageQueue.NewPublisher()

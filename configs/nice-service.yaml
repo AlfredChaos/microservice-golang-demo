@@ -1,5 +1,7 @@
 server:
   name: nice-service
+  host: 0.0.0.0  # 未来如果启用gRPC服务器需要
+  port: 9003     # 未来如果启用gRPC服务器需要
 
 log:
   level: debug  # 日志级别: debug, info, warn, error
@@ -9,11 +11,17 @@ log:
     # - /var/log/nice-service.log  # 取消注释以同时输出到文件
   enable_console_writer: true  # 是否启用 ConsoleWriter (彩色、格式化输出，仅对stdout生效)
 
+# RabbitMQ配置（nice-service作为消息消费者）
 rabbitmq:
+  enabled: true
   url: amqp://admin:123456@localhost:5672/
-  exchange: demo_exchange
-  exchange_type: direct
-  queue: nice_queue
-  routing_key: hello
+  exchange: microservice_events  # 与user-service发布的交换机一致
+  exchange_type: topic
+  queue: nice_service_queue  # 队列名
+  routing_key: "task.#"  # 订阅所有task开头的routing key
   durable: true
   auto_delete: false
+
+# gRPC客户端配置（未来如果需要调用其他服务）
+grpc_clients:
+  services: []  # 暂时为空，未来可以添加需要调用的服务

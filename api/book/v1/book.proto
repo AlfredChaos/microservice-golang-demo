@@ -5,11 +5,11 @@ package book.v1;
 option go_package = "github.com/alfredchaos/demo/api/book/v1;bookv1";
 
 service BookService {
-  rpc SayHello(HelloRequest) returns (HelloResponse) {}
+  rpc JustTellMe(TellMeRequest) returns (TellMeResponse) {}
 }
 
-message HelloRequest {}
+message TellMeRequest {}
 
-message HelloResponse {
+message TellMeResponse {
   string message = 1;
 }

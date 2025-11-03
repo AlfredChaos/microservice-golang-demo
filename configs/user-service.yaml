@@ -40,9 +40,9 @@ database:
   driver: postgres
   host: localhost
   port: 5432
-  username: postgres
+  username: admin
   password: 123456
-  database: user_service
+  database: testdb
   ssl_mode: disable  # SSL模式: disable, require, verify-ca, verify-full
   max_open_conns: 100
   max_idle_conns: 10
@@ -56,7 +56,7 @@ database:
 # 使用 Topic Exchange 模式，所有微服务共用 microservice_events 交换机
 rabbitmq:
   enabled: true
-  url: amqp://guest:guest@localhost:5672/
+  url: amqp://admin:123456@localhost:5672/
   exchange: microservice_events
   exchange_type: topic
   queue: ""
@@ -69,7 +69,7 @@ grpc_clients:
   services:
     - name: book-service
       address: localhost:9002
-      timeout: 5s
+      timeout: 10s
       retry:
         max: 3
         timeout: 10s

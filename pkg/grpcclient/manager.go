@@ -9,6 +9,7 @@ import (
 	"github.com/alfredchaos/demo/pkg/log"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
@@ -27,17 +28,17 @@ func InitGRPCClientManager(cfg *Config) *Manager {
 
 	// 注册服务配置
 	for _, svc := range cfg.Services {
-		log.Info("registering service", zap.String("service", svc.Name))
+		log.Info("registering service", zap.String("remote_service", svc.Name))
 		if err := clientManager.Register(&svc); err != nil {
-			log.Fatal("failed to register service",
-				zap.String("service", svc.Name),
+			log.Fatal("failed to register remote_service",
+				zap.String("remote_service", svc.Name),
 				zap.Error(err))
 		}
 	}
 
 	// 连接所有服务
 	if err := clientManager.ConnectAll(); err != nil {
-		log.Fatal("failed to connect services", zap.Error(err))
+		log.Fatal("failed to connect remote_services", zap.Error(err))
 	}
 
 	log.Info("grpc client manager initialized")
@@ -106,8 +107,8 @@ func (m *Manager) Connect(serviceName string) error {
 
 	m.connections[serviceName] = conn
 	log.Info("grpc connection established",
-		zap.String("service", serviceName),
-		zap.String("addr", cfg.Address))
+		zap.String("remote_service", serviceName),
+		zap.String("remote_addr", cfg.Address))
 
 	return nil
 }
@@ -206,10 +207,28 @@ func (m *Manager) buildDialOptions(cfg *ServiceConfig) []grpc.DialOption {
 	opts := []grpc.DialOption{
 		// 保持连接活跃
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
-			Timeout:             3 * time.Second,
+			Time:                60 * time.Second,
+			Timeout:             10 * time.Second,
 			PermitWithoutStream: true,
 		}),
+		// 自动重连配置
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff:           backoff.DefaultConfig, // 指数退避策略
+			MinConnectTimeout: 5 * time.Second,       // 最小连接超时
+		}),
+		// 默认服务配置（包含重试策略）
+		grpc.WithDefaultServiceConfig(`{
+			"methodConfig": [{
+				"name": [{"service": ""}],
+				"retryPolicy": {
+					"maxAttempts": 3,
+					"initialBackoff": "0.1s",
+					"maxBackoff": "1s",
+					"backoffMultiplier": 2.0,
+					"retryableStatusCodes": ["UNAVAILABLE", "DEADLINE_EXCEEDED"]
+				}
+			}]
+		}`),
 	}
 
 	// TLS配置

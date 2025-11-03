@@ -1,11 +1,14 @@
 package server
 
 import (
+	"time"
+
 	userv1 "github.com/alfredchaos/demo/api/user/v1"
 	"github.com/alfredchaos/demo/internal/user-service/conf"
 	"github.com/alfredchaos/demo/internal/user-service/service"
 	"github.com/alfredchaos/demo/pkg/middleware"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // ServiceRegistrar 服务注册函数类型
@@ -46,6 +49,19 @@ func (b *GRPCServerBuilder) Build() *GRPCServer {
 			middleware.StreamServerTracing(),
 			middleware.StreamServerLogging(),
 		),
+		// KeepAlive 策略：允许客户端发送 ping
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             30 * time.Second, // 允许客户端最快30秒发一次ping（小于客户端的60秒）
+			PermitWithoutStream: true,             // 允许在没有活动流时发送ping
+		}),
+		// KeepAlive 参数：服务器端的连接管理
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     15 * time.Minute, // 连接空闲15分钟后关闭
+			MaxConnectionAge:      30 * time.Minute, // 连接最多存活30分钟
+			MaxConnectionAgeGrace: 5 * time.Second,  // 优雅关闭等待5秒
+			Time:                  5 * time.Minute,  // 服务器每5分钟发一次ping
+			Timeout:               1 * time.Second,  // ping超时1秒
+		}),
 	)
 
 	// 注册所有服务

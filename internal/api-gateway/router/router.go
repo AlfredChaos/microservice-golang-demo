@@ -27,8 +27,6 @@ func SetupRouter(appCtx *dependencies.AppContext) *gin.Engine {
 	{
 		// 用户路由
 		UserRouter(apiV1, appCtx.UserController)
-		// 图书路由
-		BookRouter(apiV1, appCtx.BookController)
 		// 可以继续添加更多路由
 		// OrderRouter(apiV1, appCtx.OrderController)
 	}

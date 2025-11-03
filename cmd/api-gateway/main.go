@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	orderv1 "github.com/alfredchaos/demo/api/order/v1"
 	userv1 "github.com/alfredchaos/demo/api/user/v1"
 	_ "github.com/alfredchaos/demo/docs"
 	"github.com/alfredchaos/demo/internal/api-gateway/dependencies"
@@ -45,10 +44,6 @@ func init() {
 	// 注册 gRPC 客户端工厂
 	grpcclient.GlobalRegistry.Register("user-service", func(conn *grpc.ClientConn) interface{} {
 		return userv1.NewUserServiceClient(conn)
-	})
-
-	grpcclient.GlobalRegistry.Register("book-service", func(conn *grpc.ClientConn) interface{} {
-		return orderv1.NewBookServiceClient(conn)
 	})
 }
 

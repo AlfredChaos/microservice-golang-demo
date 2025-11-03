@@ -26,14 +26,7 @@ grpc_clients:
   services:
     - name: user-service
       address: localhost:9001
-      timeout: 5s
-      retry:
-        max: 3
-        timeout: 10s
-        backoff: 100ms
-    - name: book-service
-      address: localhost:9002
-      timeout: 5s
+      timeout: 10s
       retry:
         max: 3
         timeout: 10s

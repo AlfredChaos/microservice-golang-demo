@@ -59,7 +59,7 @@ func (uc *UserUseCase) SayHello(ctx context.Context, name string) (string, error
 
 	// 2. 同步调用book-service获取消息
 	log.Info("calling book-service via gRPC")
-	bookResp, err := uc.bookClient.SayHello(ctx, &bookv1.HelloRequest{})
+	bookResp, err := uc.bookClient.JustTellMe(ctx, &bookv1.TellMeRequest{})
 	if err != nil {
 		log.Error("failed to call book-service", zap.Error(err))
 		return "", err
